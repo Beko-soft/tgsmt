@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OBJ ve MTL Görüntüleyici</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/MTLLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+
+<script>
+    // --- 1. Temel Kurulum ---
+
+    const scene = new THREE.Scene();
+
+    // Kamerayı tanımlama.
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+
+    // Renderer kurulumu
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Arka plan rengini hafif gri yapalım
+    renderer.setClearColor(0xAAAAAA, 1);
+
+    // --- 2. Kontroller ve Pozisyon ---
+
+    // OrbitControls ile model etrafında gezinebilme özelliği
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+    // Başlangıç Kamera Pozisyonu: Modelin etrafını görebilmek için kamerayı geriye çekiyoruz.
+    camera.position.set(0, 0, 1500);
+    controls.update();
+
+    // --- 3. Işıklandırma ---
+
+    // Modeli aydınlatmak için yumuşak genel ışık
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    scene.add(ambientLight);
+
+    // Yönlü ışık ile gölge ve detay ekleme
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    directionalLight.position.set(500, 500, 500);
+    scene.add(directionalLight);
+
+    // --- 4. OBJ ve MTL Modelini Yükleme ---
+
+    const mtlLoader = new THREE.MTLLoader();
+    const objLoader = new THREE.OBJLoader();
+
+    const objPath = 'dosya.obj';
+    const mtlPath = 'dosya.mtl';
+
+    // Önce Malzemeyi (MTL) Yükle (Doku ve Renkler için)
+    mtlLoader.load(mtlPath, function(materials) {
+
+        materials.preload();
+
+        // OBJ yükleyicisine malzemeleri ata
+        objLoader.setMaterials(materials);
+
+        // Malzemeler hazır, şimdi OBJ dosyasını yükle
+        objLoader.load(
+            objPath,
+            function (object) {
+                // Obje başarılı bir şekilde yüklendi
+                scene.add(object);
+                console.log('✅ OBJ Model ve Malzeme başarıyla sahneye eklendi:', objPath);
+
+                // Kameranın modelin merkezine odaklanmasını sağla
+                controls.target.set(0, 0, 0);
+                controls.update();
+            },
+            // İlerleme Durumu
+            function (xhr) {
+                console.log('OBJ:', (xhr.loaded / xhr.total * 100).toFixed(2) + '% yüklendi');
+            },
+            // Hata Durumu (OBJ Yükleme)
+            function (error) {
+                console.error('🚨 KRİTİK HATA! OBJ Yüklenirken veya Ayrıştırılırken Hata Oluştu:', error);
+                alert('Hata! OBJ Model Yüklenemedi. Dosya adını ve konsolu kontrol edin.');
+            }
+        );
+    },
+    // MTL Yükleme Hata Yakalama
+    function(error) {
+        console.warn('⚠️ MTL Malzeme Dosyası Yüklenemedi. Model renksiz yüklenecek.', error);
+
+        // Eğer MTL yüklenemezse, OBJ'yi malzemesiz yükle
+        objLoader.load(
+            objPath,
+            function (object) {
+                scene.add(object);
+                console.log('✅ OBJ Model renksiz olarak sahneye eklendi.');
+            },
+            // ... (İlerleme ve OBJ hata fonksiyonları yukarıdaki gibi devam eder)
+            function (error) {
+                console.error('🚨 KRİTİK HATA! OBJ Yüklenirken veya Ayrıştırılırken Hata Oluştu:', error);
+            }
+        );
+    });
+
+    // --- 5. Animasyon Döngüsü ---
+
+    function animate() {
+        requestAnimationFrame(animate);
+        // Kontrolleri sürekli güncelle
+        controls.update();
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    // --- 6. Pencere Boyut Değişikliği ---
+
+    window.addEventListener('resize', onWindowResize, false);
+
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+</script>
+</body>
+</html>
